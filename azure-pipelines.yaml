@@ -1,10 +1,10 @@
 trigger:
-  paths:
-    include:
-      - terraform/**
   branches:
     include:
       - main
+  paths:
+    include:
+      - terraform/**
 
 stages:
 - stage: Terraform
@@ -14,33 +14,32 @@ stages:
     displayName: 'Terraform Apply'
     pool:
       name: 'self-hosted-agent'
-    steps:
-    # Optional Python setup for Terraform dependencies (commented out)
-    # - task: UsePythonVersion@0
-    #   inputs:
-    #     versionSpec: '3.x'
 
+    steps:
+    # ✅ Step 1: Download SSH Public Key
     - task: DownloadSecureFile@1
       name: download_ssh_key
       inputs:
         secureFile: 'book-review-ssh.pub'
 
+    # ✅ Step 2: Copy SSH key into Terraform compute module
     - script: |
-        echo "Copying SSH public key into Terraform module"
-
+        echo "Copying SSH public key into Terraform module..."
         mkdir -p ~/.ssh
-        cp $(download_ssh_key.secureFilePath) ~/.ssh/id_rsa.pub
+        cp "$(download_ssh_key.secureFilePath)" ~/.ssh/id_rsa.pub
 
-        # Copy into Terraform compute module
-        cp $(download_ssh_key.secureFilePath) terraform/modules/compute/id_rsa.pub
+        # Copy to Terraform compute module folder
+        cp "$(download_ssh_key.secureFilePath)" terraform/modules/compute/id_rsa.pub
 
         echo "Listing contents of terraform/modules/compute/"
         ls -al terraform/modules/compute/
-      displayName: 'Extract SSH Public Key for Terraform'
+      displayName: 'Prepare SSH Public Key'
 
+    # ✅ Step 3: Terraform Init/Plan/Apply
     - task: AzureCLI@2
+      displayName: 'Run Terraform'
       inputs:
-        azureSubscription: 'it-azure-connection'
+        azureSubscription: 'book-review-sp'  # 🔁 must match the service connection name in Azure DevOps
         scriptType: bash
         scriptLocation: inlineScript
         workingDirectory: $(System.DefaultWorkingDirectory)/terraform
